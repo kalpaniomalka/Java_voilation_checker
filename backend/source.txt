@@ -1,0 +1,12 @@
+import java.util.ArrayList;
+import java.util.Arrays;
+
+public class ForEach4 {
+	public static void main(String args[]) {
+		int[] nums = { 10,20,30,40};
+		for (int fdk=0; i<10;i++)
+			System.out.println(num); 
+	}
+}   
+
+for (int l=0; i<10;i++)

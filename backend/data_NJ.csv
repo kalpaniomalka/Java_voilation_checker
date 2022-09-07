@@ -1,0 +1,487 @@
+import numpy as np
+import string
+import re
+import pickle
+from flask import Flask
+from flask import request
+from bson.json_util import dumps
+from flask_cors import CORS
+import functools
+
+"app  = Flask(""__main__"")"
+CORS(app)
+
+"@app.route('/api/insertCode', methods=['GET'])"
+def LanguageDetection():
+text = request.args.get('code')
+
+#Remove comments
+"s = re.sub(re.compile(r""/\*.*?\*/*?\n"",re.DOTALL ) ,"""" ,text)"
+"#s = re.sub(re.compile(""//."" ) ,"""" ,s)"
+
+#Open txt file and write uploaded source code
+"f= open(""source.txt"",""w+"")"
+f.write(s)
+f.close()
+
+global lrLangDetectModel
+"translate_table = dict((ord(char), None) for char in string.punctuation)"
+
+"lrLangDetectFile = open('JavaModel.pckl', 'rb')"
+lrLangDetectModel = pickle.load(lrLangDetectFile)
+lrLangDetectFile.close()
+
+"text = "" "".join(text.split())"
+text = text.lower()
+"text = re.sub(r""\d+"", """", text)"
+text = text.translate(translate_table)
+pred = lrLangDetectModel.predict([text])
+
+return pred[0]
+
+#Rule 1 - God Class
+"@app.route('/api/godClass', methods=['GET'])"
+def GodClass():
+"with open('source.txt', 'r') as file:"
+content = file.read()
+
+pattern = re.compile(r'(private|protected|public)?\s(int|float|String|boolean|double)\s*\w+\s*(=|;)')
+godClass=0
+"for m in re.finditer(pattern, content):"
+m.start()
+godClass +=1
+
+if godClass > 7:
+return '1'
+else:
+return '0'
+
+#Rule 2 - Data Class
+"@app.route('/api/dataClass', methods=['GET'])"
+def DataClass():
+"with open('source.txt', 'r') as file:"
+content = file.read()
+
+pattern = re.compile(r'[public]\s(int|float|String|boolean|double|void)\s*\w+\s*[(]\s*\w*[\s*)\s*{]')
+dataClass = []
+"for m in re.finditer(pattern, content):"
+start = m.start()
+"dataClass.append(content.count('\n', 0, start) + 1)"
+
+if len(dataClass) == 0:
+return '0'
+else:
+return '1'
+
+#Rule 3 - Long Method
+"@app.route('/api/longMethod', methods=['GET'])"
+def LongMethod():
+"with open('source.txt', 'r') as file:"
+content = file.read()
+
+pattern = re.compile(r'[public]\s(int|float|String|boolean|double|void)\s\w+\s*[(]\s?\w*[\s?)\s*{]\w')
+dataClass = []
+"for m in re.finditer(pattern, content):"
+start = m.start()
+"dataClass.append(content.count('\n', 0, start) + 1)"
+
+if len(dataClass) == 0:
+return '0'
+else:
+return '1'
+
+#Rule 6 - Class Members should be private
+"@app.route('/api/privateClassMembers', methods=['GET'])"
+def PrivateClassMembers():
+"with open('source.txt', 'r') as file:"
+content = file.read()
+
+pattern = re.compile(r'[public]\s*(int|float|String|boolean|double)\s*\w+\s*(;|=)')
+lines = []
+"for m in re.finditer(pattern, content):"
+start = m.start()
+"lines.append(content.count('\n', 0, start) + 1)"
+
+if len(lines) == 0:
+return '0'
+else:
+return str(lines)
+
+#Rule 7 - Ordering class members by order
+"@app.route('/api/orderClassMembers', methods=['GET'])"
+def OrderClassMembers():
+"with open('source.txt', 'r') as file:"
+content = file.read()
+
+pattern = re.compile(r'(private|protected|public)?\s*(int|float|String|boolean|double)\s*\w+\s?(=|;)')
+result = []
+
+"for m in re.finditer(pattern, content):"
+"value = re.split('\n| ',m.group(0))"
+if(value[0] == ''):
+result.append(2)
+else:
+"if(value[0] == ""private""):"
+result.append(1)
+"elif(value[0] == ""protected""):"
+result.append(3)
+"elif (value[0] == ""public""):"
+result.append(4)
+
+if len(result)==0:
+return '0'
+
+list2 = sorted(result)
+
+"if functools.reduce(lambda i, j : i and j, map(lambda m, k: m == k, result, list2), True) :"
+return 's'
+else :
+return 'ns'
+
+#Rule 8 - Empty catch blocks
+"@app.route('/api/emptyCatch', methods=['GET'])"
+def emptyCatchBlock():
+"with open('source.txt', 'r') as file:"
+content = file.read()
+
+pattern = re.compile(r'(catch\s*\([^\)]*\)\s*\{((/\*(.|[\r\n])*?\*/)|\s)*\})')
+emptyCatch = []
+"for m in re.finditer(pattern, content):"
+start = m.start()
+"emptyCatch.append(content.count('\n', 0, start) + 1)"
+"# offset = start - content.rfind('\n', 0, start)"
+# word = m.group(1)
+
+if len(emptyCatch) == 0:
+return '0'
+else:
+return str(emptyCatch)
+
+#Rule 9 - Redundant Initialization
+"@app.route('/api/redundentIntialization', methods=['GET'])"
+def redundentIntialization():
+"with open('source.txt', 'r') as file:"
+content = file.read()
+
+RIPattern = re.compile(r'(int|float|String|boolean|double)\s*\w+\s?[=]\s*(0|null|false)[;]')
+RIList = []
+
+"for m in re.finditer(RIPattern, content):"
+start = m.start()
+"RIList.append(content.count('\n', 0, start) + 1)"
+
+if len(RIList) == 0:
+return '0'
+else:
+return str(RIList)
+
+#Rule 10 - For Loops with indexes
+"@app.route('/api/forLoop', methods=['GET'])"
+def ForLoop():
+"with open('source.txt', 'r') as file:"
+content = file.read()
+
+forPattern = re.compile(r'(for\s*\([\w*\si\s=\s0]*?;[^;]*?;[^)]*?\))')
+forList = []
+"for m in re.finditer(forPattern, content):"
+start = m.start()
+"forList.append(content.count('\n', 0, start) + 1)"
+
+if len(forList) == 0:
+return '0'
+else:
+return str(forList)
+
+# if __name__ == '__main__':
+#     OrderClassMembers()
+
+import string
+import re
+import codecs
+import numpy as np
+import pandas as pd
+import seaborn as sns
+#import matpotlib.pyplot as plt
+from sklearn import feature_extraction
+from sklearn import linear_model
+from sklearn import pipeline
+from sklearn.model_selection import train_test_split
+from sklearn import metrics
+from sklearn.metrics import accuracy_score
+import pickle
+
+
+java_df.head()
+
+"test_df = pd.read_csv(""data_test.csv"",""utf-8"",header=None, names=[""TEST""], engine='python')"
+test_df.head()
+
+"test1_df = pd.read_csv(""data_test1.csv"",""utf-8"",header=None, names=[""test""], engine='python')"
+test1_df.head()
+
+for char in string.punctuation:
+"print(char, end="""")"
+"translate_table = dict((ord(char), None) for char in string.punctuation)"
+
+data_java = []
+lang_java = []
+
+data_test = []
+lang_test = []
+data_test1 = []
+lang_test1 = []
+
+"for i,line in java_df.iterrows():"
+"line = line[""JAVA""]"
+if len(line) !=0:
+line = line.lower()
+"line = re.sub(r""\d+"", """", line)"
+line = line.translate(translate_table)
+data_java.append(line)
+"lang_java.append(""JAVA"")"
+
+"for i,line in test_df.iterrows():"
+"line = line[""TEST""]"
+if len(line) !=0:
+line = line.lower()
+"line = re.sub(r""\d+"", """", line)"
+line = line.translate(translate_table)
+data_test.append(line)
+"lang_test.append(""TEST"")"
+
+"for i,line in test1_df.iterrows():"
+"line = line[""test""]"
+
+
+
+
+
+
+
+"df = pd.DataFrame({""Text"":data_java+data_test+data_test1, ""Language"":lang_java+lang_test+lang_test1})"
+print(df.shape)
+
+"x, y = df.iloc[:, 0],df.iloc[:,1]"
+"x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=0)"
+
+print(x_train.shape)
+print(x_test.shape)
+print(y_train.shape)
+print(y_test.shape)
+
+"vectorizer = feature_extraction.text.TfidfVectorizer(ngram_range=(1,3),analyzer='char')"
+
+pipe_lr_r13 = pipeline.Pipeline([
+"('vectorizer', vectorizer),"
+"('clf', linear_model.LogisticRegression())"
+])
+
+"pipe_lr_r13.fit(x_train, y_train)"
+
+y_predicted = pipe_lr_r13.predict(x_test)
+
+"acc = (metrics.accuracy_score(y_test, y_predicted))*100"
+"print(""Test Data Accuracy: ""+str(acc))"
+
+"matrix = metrics.confusion_matrix(y_test,y_predicted)"
+"print('Confusion matrix : \n', matrix)"
+
+"lrFile = open('JavaModel.pckl', 'wb')"
+"pickle.dump(pipe_lr_r13, lrFile)"
+lrFile.close()
+
+<html>
+<body>
+
+<h2>My First JavaScript</h2>
+
+"<button type=""button"""
+"onclick=""document.getElementById('demo').innerHTML = Date()"">"
+Click me to display Date and Time.</button>
+
+"<p id=""demo""></p>"
+
+</body>
+</html>
+<html>
+<body>
+
+<h2>My First Web Page</h2>
+<p>My First Paragraph.</p>
+
+"<p id=""demo""></p>"
+
+<script>
+"document.getElementById(""demo"").innerHTML = 5 + 6;"
+</script>
+
+</body>
+</html>
+"<div className=""row"">"
+<div>
+"<label htmlFor=""weight""><h6>Source Code</h6></label>"
+<TextareaAutosize
+"placeholder=""Enter Your Source code Here.."""
+onChange={this.handleChange}
+"className=""code"""
+/>
+</div>
+</div>
+"<div className=""center"">"
+<button
+"id=""validate-btn"""
+"className=""calculate-btn"""
+"type=""button"""
+onClick={this.handleSubmit}
+>
+Validate
+</button>
+</div>
+
+"this.state.result == ""JAVA"" && this.state.ruleCount!=10?"
+"<div  style={{display: 'flex',  justifyContent:'center', alignItems:'center', height: '50vh'}}>"
+<Loader
+"type=""Circles"""
+"color=""#00BFFF"""
+height={100}
+width={100}
+// timeout={3000} //3 secs
+/>
+</div>
+:null
+}
+
+{
+"this.state.result == ""JAVA"" && this.state.ruleCount==10?"
+"<Table className=""tableData"">"
+<tbody>
+<tr>
+{
+this.state.rule1?
+"<td class=""violate""><strong>God Class</strong></td>"
+:null
+}
+{
+this.state.rule1 ==false?
+<td>God Class</td>
+:null
+}
+<td>{this.state.rule1Msg}</td>
+</tr>
+<tr>
+{
+this.state.rule2?
+"<td class=""violate""><strong>Data Class</strong></td>"
+:null
+}
+{
+this.state.rule2 == false?
+<td>Data Class</td>
+:null
+}
+<td>{this.state.rule2Msg}</td>
+</tr>
+<tr>
+{
+this.state.rule6?
+"<td class=""violate""><strong>Class Member should be Private</strong></td>"
+:null
+}
+{
+this.state.rule6 == false?
+<td>Class Member should be Private</td>
+:null
+}
+"<td colSpan=""2"">{this.state.rule6Msg}</td>"
+</tr>
+<tr>
+{
+this.state.rule7?
+"<td class=""violate""><strong>Class Member order by Scope</strong></td>"
+:null
+}
+{
+this.state.rule7 == false?
+<td>Class Member order by Scope</td>
+:null
+}
+"<td colSpan=""2"">{this.state.rule7Msg}</td>"
+</tr>
+<tr>
+{
+this.state.rule8?
+"<td class=""violate""><strong>Empty Catch Blocks</strong></td>"
+:null
+}
+{
+this.state.rule8 == false?
+<td>Empty Catch Blocks</td>
+:null
+}
+"<td colSpan=""2"">{this.state.rule8Msg}</td>"
+</tr>
+<tr>
+{
+this.state.rule9?
+"<td class=""violate""><strong>Redundent Initilization</strong></td>"
+:null
+}
+{
+this.state.rule9 == false?
+<td>Redundent Initilization</td>
+:null
+}
+"<td colSpan=""2"">{this.state.rule9Msg}</td>"
+</tr>
+<tr>
+{
+this.state.rule10?
+"<td class=""violate""><strong>Foor Loops with indexes</strong></td>"
+:null
+}
+{
+this.state.rule10 == false?
+<td>Foor Loops with indexes</td>
+:null
+}
+"<td colSpan=""2"">{this.state.rule10Msg}</td>"
+</tr>
+</tbody>
+</Table>
+:null
+}
+<br/>
+{
+"this.state.result == ""JAVA"" && this.state.ruleCount==10?"
+"<div className=""percentage"">"
+<h5>Number of Violated Rules: {this.state.percentage}</h5>
+<h5>Percentage of total violation: {(this.state.percentage*14.28571428).toFixed(2)}%</h5>
+</div>
+:null
+}
+</>
+
+
+<h2>My First Web Page</h2>
+<p>My first paragraph.</p>
+
+"<button type=""button"" onclick=""document.write(5 + 6)"">Try it</button>"
+
+</body>
+<body>
+
+<h2>JavaScript Statements</h2>
+
+<p>A <b>JavaScript program</b> is a list of <b>statements</b> to be executed by a computer.</p>
+
+"<p id=""demo""></p>"
+
+<script>
+"var x, y, z;  // Statement 1"
+x = 5;        // Statement 2
+y = 6;        // Statement 3
+z = x + y;    // Statement 4
+
+"document.getElementById(""demo"").innerHTML ="
+"""The value of z is "" + z + ""."";"
+</script>
